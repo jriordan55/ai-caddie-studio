@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07110E" />
+  <title>Setup · AI Caddie Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #07110E; --bg-2: #0D1C17; --surface: #12261F; --surface-2: #18352B;
+      --line: rgba(232,240,234,0.1); --text: #EEF5F0; --muted: #8FA89A;
+      --accent: #9BE56E; --danger: #E8907A; --warn: #E8C06A;
+      --font: "Sora", system-ui, sans-serif; --num: "Oswald", sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh; font-family: var(--font); color: var(--text);
+      background: linear-gradient(180deg, #0A1813 0%, var(--bg) 40%, #050C0A 100%);
+      -webkit-font-smoothing: antialiased;
+    }
+    .app { max-width: 560px; margin: 0 auto; padding: 18px 16px 40px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    header h1 span { color: var(--accent); }
+    header a { color: var(--muted); text-decoration: none; font-size: 0.85rem; }
+    .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+    .tabs button {
+      border: 1px solid var(--line); background: var(--bg-2); color: var(--muted);
+      border-radius: 999px; padding: 8px 12px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+    }
+    .tabs button.on { color: var(--accent); border-color: var(--accent); background: rgba(155,229,110,0.12); }
+    .panel {
+      background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+      padding: 16px; margin-bottom: 12px;
+    }
+    .panel h2 {
+      font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 10px;
+    }
+    .hint { color: var(--muted); font-size: 0.85rem; line-height: 1.5; margin-bottom: 12px; }
+    label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; letter-spacing: 0.04em; }
+    input, select, textarea {
+      width: 100%; background: var(--bg-2); border: 1px solid var(--line); color: var(--text);
+      border-radius: 10px; padding: 10px 12px; font: inherit; margin-bottom: 10px;
+    }
+    textarea { min-height: 120px; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .row3 { display: grid; grid-template-columns: 1.1fr 0.9fr 0.9fr auto; gap: 6px; align-items: end; }
+    .club-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: var(--bg-2);
+    }
+    .club-card .more { display: none; margin-top: 8px; }
+    .club-card.open .more { display: block; }
+    .linkish {
+      background: none; border: none; color: var(--accent); font: inherit;
+      font-size: 0.75rem; font-weight: 600; cursor: pointer; padding: 0; margin-top: 4px;
+    }
+    .btn {
+      border: none; border-radius: 12px; padding: 12px 14px; font-weight: 700; cursor: pointer; font: inherit;
+    }
+    .btn.primary { background: var(--accent); color: #07110E; width: 100%; }
+    .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); }
+    .btn.danger { background: rgba(232,144,122,0.15); color: var(--danger); border: 1px solid var(--danger); }
+    .btn.small { padding: 8px 10px; font-size: 0.78rem; }
+    .list-item {
+      display: flex; justify-content: space-between; gap: 10px; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 0.9rem;
+    }
+    .list-item:last-child { border-bottom: none; }
+    .msg { margin-top: 8px; font-size: 0.82rem; color: var(--accent); }
+    .msg.err { color: var(--danger); }
+    .hidden { display: none !important; }
+    .club-lines { display: flex; flex-direction: column; gap: 8px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>AI <span>Caddie</span> Setup</h1>
+      <a href="index.html">Home</a>
+    </header>
+
+    <div class="tabs">
+      <button type="button" class="on" data-tab="bag">Bag</button>
+      <button type="button" data-tab="courses">Courses</button>
+      <button type="button" data-tab="backup">Backup</button>
+    </div>
+
+    <section id="tab-bag">
+      <div class="panel">
+        <h2>Your name</h2>
+        <input id="playerName" placeholder="e.g. Jordan" />
+      </div>
+
+      <div class="panel">
+        <h2>Enter average carry per club</h2>
+        <p class="hint">
+          No shot file needed. Type each club and its average carry in yards. That is enough for club calls.
+          Optional: open “More averages” on a club to add total, smash, spin, or apex if you know them. Without those, AI Caddie estimates the extras, so Compare and Insights are less precise than a full launch monitor import.
+        </p>
+        <div class="club-lines" id="clubLines"></div>
+        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <button type="button" class="btn ghost small" id="addClub">Add club</button>
+          <button type="button" class="btn ghost small" id="addDefaults">Load blank 12-club bag</button>
+        </div>
+        <button type="button" class="btn primary" style="margin-top:12px" id="saveBag">Save bag</button>
+        <div class="msg" id="bagMsg"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Optional: import launch monitor CSV</h2>
+        <p class="hint">
+          If you have a session file (shot by shot), import it for more accurate stock carries, consistency, spin, smash, and miss patterns. Otherwise skip this.
+        </p>
+        <input type="file" id="csvFile" accept=".csv,text/csv" />
+        <textarea id="csvText" placeholder="Paste CSV here…"></textarea>
+        <button type="button" class="btn ghost" id="importCsv">Import CSV</button>
+        <div class="msg" id="csvMsg"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Current bag</h2>
+        <div id="bagSummary"><p class="hint">No bag saved yet.</p></div>
+      </div>
+    </section>
+
+    <section id="tab-courses" class="hidden">
+      <div class="panel">
+        <h2>Shared course library</h2>
+        <p class="hint">Turn on mapped courses for Live GPS. These use public OpenStreetMap green outlines.</p>
+        <div id="communityList"></div>
+        <button type="button" class="btn ghost" style="margin-top:10px" id="addSelected">Add selected to my courses</button>
+        <div class="msg" id="courseMsg"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Upload greens JSON</h2>
+        <p class="hint">Upload a GPS_COURSES style file (array of courses with holes f/m/b), or a single course object.</p>
+        <input type="file" id="greensFile" accept=".json,application/json,.js" />
+        <div class="msg" id="greensMsg"></div>
+      </div>
+
+      <div class="panel">
+        <h2>My courses</h2>
+        <div id="myCourses"><p class="hint">None yet.</p></div>
+      </div>
+
+      <div class="panel">
+        <h2>Yardage book PDFs</h2>
+        <p class="hint">
+          Studio powers the AI Caddie app. For printable yardage books, use the OpenYardage scripts in the golf_yardage_books repo: fetch OSM, elevation, then generate PDF. Your Live GPS greens can be exported below for that pipeline.
+        </p>
+        <button type="button" class="btn ghost" id="exportCourses">Download my courses JSON</button>
+      </div>
+    </section>
+
+    <section id="tab-backup" class="hidden">
+      <div class="panel">
+        <h2>Export / import profile</h2>
+        <p class="hint">Move your bag and courses to another phone, or keep a backup.</p>
+        <button type="button" class="btn ghost" id="exportProfile">Download profile JSON</button>
+        <input type="file" id="importProfile" accept=".json,application/json" style="margin-top:10px" />
+        <div class="msg" id="backupMsg"></div>
+      </div>
+      <div class="panel">
+        <h2>Reset</h2>
+        <button type="button" class="btn danger" id="resetAll">Clear this device profile</button>
+      </div>
+    </section>
+
+    <a class="btn primary" href="app.html" style="display:block;text-align:center;text-decoration:none;margin-top:8px">Open my caddie</a>
+  </div>
+
+  <script src="js/profile.js"></script>
+  <script src="community-greens.js"></script>
+  <script>
+    const $ = (s, el = document) => el.querySelector(s);
+    const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+    let profile = StudioProfile.load();
+    const community = window.GPS_COURSES || [];
+
+    $$(".tabs button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        $$(".tabs button").forEach(b => b.classList.toggle("on", b === btn));
+        ["bag", "courses", "backup"].forEach(t => {
+          $(`#tab-${t}`).classList.toggle("hidden", t !== btn.dataset.tab);
+        });
+      });
+    });
+
+    $("#playerName").value = profile.name || "";
+
+    function clubRow(data = {}) {
+      const div = document.createElement("div");
+      div.className = "club-card";
+      const hasMore = data.total || data.smash || data.spin || data.apex || data.ballSpeed || data.clubSpeed
+        || data.launch || data.descent || data.horiz || data.face || data.path || data.faceToPath
+        || data.sideCarry || data.sideTotal;
+      if (hasMore) div.classList.add("open");
+      div.innerHTML = `
+        <div class="row3">
+          <div>
+            <label>Club</label>
+            <input class="c-id" placeholder="7i" value="${data.id || ""}" />
+          </div>
+          <div>
+            <label>Avg carry (yd)</label>
+            <input class="c-carry" type="number" inputmode="decimal" placeholder="172" value="${data.carry ?? data.stock ?? ""}" />
+          </div>
+          <div>
+            <label>Avg total (opt)</label>
+            <input class="c-total" type="number" inputmode="decimal" placeholder="183" value="${data.total ?? ""}" />
+          </div>
+          <button type="button" class="btn ghost small c-del" aria-label="Remove">✕</button>
+        </div>
+        <button type="button" class="linkish c-more">${hasMore ? "Hide extra averages" : "More averages (optional)"}</button>
+        <div class="more">
+          <div class="row">
+            <div>
+              <label>Smash</label>
+              <input class="c-smash" type="number" step="0.01" placeholder="1.35" value="${data.smash ?? ""}" />
+            </div>
+            <div>
+              <label>Spin (rpm)</label>
+              <input class="c-spin" type="number" placeholder="6500" value="${data.spin ?? ""}" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Apex (ft)</label>
+              <input class="c-apex" type="number" placeholder="95" value="${data.apex ?? ""}" />
+            </div>
+            <div>
+              <label>Spin axis (°)</label>
+              <input class="c-axis" type="number" step="0.1" placeholder="-2 left, +2 right" value="${data.axis ?? ""}" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Ball mph</label>
+              <input class="c-bs" type="number" placeholder="120" value="${data.ballSpeed ?? ""}" />
+            </div>
+            <div>
+              <label>Club mph</label>
+              <input class="c-cs" type="number" placeholder="90" value="${data.clubSpeed ?? ""}" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Launch (°)</label>
+              <input class="c-launch" type="number" step="0.1" placeholder="17" value="${data.launch ?? ""}" />
+            </div>
+            <div>
+              <label>Descent (°)</label>
+              <input class="c-descent" type="number" step="0.1" placeholder="45" value="${data.descent ?? ""}" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Horiz (°)</label>
+              <input class="c-horiz" type="number" step="0.1" placeholder="R +, L -" value="${data.horiz ?? ""}" />
+            </div>
+            <div>
+              <label>Face (°)</label>
+              <input class="c-face" type="number" step="0.1" placeholder="R +, L -" value="${data.face ?? ""}" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Path (°)</label>
+              <input class="c-path" type="number" step="0.1" placeholder="R +, L -" value="${data.path ?? ""}" />
+            </div>
+            <div>
+              <label>Face to path (°)</label>
+              <input class="c-ftp" type="number" step="0.1" placeholder="-4.5" value="${data.faceToPath ?? ""}" />
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Side carry (yd)</label>
+              <input class="c-sidec" type="number" step="0.1" placeholder="R +, L -" value="${data.sideCarry ?? ""}" />
+            </div>
+            <div>
+              <label>Side total (yd)</label>
+              <input class="c-sidet" type="number" step="0.1" placeholder="R +, L -" value="${data.sideTotal ?? ""}" />
+            </div>
+          </div>
+        </div>
+      `;
+      div.querySelector(".c-del").addEventListener("click", () => div.remove());
+      div.querySelector(".c-more").addEventListener("click", () => {
+        div.classList.toggle("open");
+        div.querySelector(".c-more").textContent = div.classList.contains("open")
+          ? "Hide extra averages"
+          : "More averages (optional)";
+      });
+      return div;
+    }
+
+    function renderClubLines(clubs) {
+      const box = $("#clubLines");
+      box.innerHTML = "";
+      const starter = clubs.length ? clubs : [
+        { id: "Driver" }, { id: "3W" }, { id: "Hybrid" }, { id: "5i" }, { id: "6i" }, { id: "7i" },
+        { id: "8i" }, { id: "9i" }, { id: "PW" }, { id: "AW" }, { id: "SW" }, { id: "60" },
+      ];
+      starter.forEach(c => {
+        box.appendChild(clubRow({
+          id: c.id,
+          carry: c.stock ?? c.carry,
+          total: c.total,
+          smash: c.smash,
+          spin: c.spin,
+          apex: c.apex,
+          axis: c.axis,
+          ballSpeed: c.ballSpeed,
+          clubSpeed: c.clubSpeed,
+          launch: c.launch,
+          descent: c.descent,
+          horiz: c.horiz,
+          face: c.face,
+          path: c.path,
+          faceToPath: c.faceToPath,
+          sideCarry: c.sideCarry,
+          sideTotal: c.sideTotal,
+        }));
+      });
+    }
+
+    function readManualClubs() {
+      return $$("#clubLines .club-card").map(row => {
+        const num = (sel) => {
+          const v = row.querySelector(sel)?.value;
+          if (v === "" || v == null) return undefined;
+          const n = Number(v);
+          return Number.isFinite(n) ? n : undefined;
+        };
+        return {
+          id: row.querySelector(".c-id").value.trim(),
+          carry: num(".c-carry"),
+          total: num(".c-total"),
+          smash: num(".c-smash"),
+          spin: num(".c-spin"),
+          apex: num(".c-apex"),
+          axis: num(".c-axis"),
+          ballSpeed: num(".c-bs"),
+          clubSpeed: num(".c-cs"),
+          launch: num(".c-launch"),
+          descent: num(".c-descent"),
+          horiz: num(".c-horiz"),
+          face: num(".c-face"),
+          path: num(".c-path"),
+          faceToPath: num(".c-ftp"),
+          sideCarry: num(".c-sidec"),
+          sideTotal: num(".c-sidet"),
+        };
+      }).filter(r => r.id && r.carry > 0);
+    }
+
+    function renderBagSummary() {
+      const box = $("#bagSummary");
+      if (!StudioProfile.hasBag(profile)) {
+        box.innerHTML = `<p class="hint">No bag saved yet.</p>`;
+        return;
+      }
+      box.innerHTML = profile.bag.clubs.map(c => `
+        <div class="list-item">
+          <span>${c.id} <span style="color:var(--muted)">${c.name}</span></span>
+          <strong style="font-family:var(--num)">${Math.round(c.stock)} yd</strong>
+        </div>
+      `).join("");
+    }
+
+    function renderMyCourses() {
+      const box = $("#myCourses");
+      if (!profile.courses?.length) {
+        box.innerHTML = `<p class="hint">None yet.</p>`;
+        return;
+      }
+      box.innerHTML = profile.courses.map((c, i) => `
+        <div class="list-item">
+          <span>${c.name} <span style="color:var(--muted)">${c.holes?.length || 0} holes</span></span>
+          <button type="button" class="btn ghost small" data-rm="${i}">Remove</button>
+        </div>
+      `).join("");
+      $$("[data-rm]", box).forEach(btn => {
+        btn.addEventListener("click", () => {
+          profile.courses.splice(Number(btn.dataset.rm), 1);
+          StudioProfile.save(profile);
+          renderMyCourses();
+        });
+      });
+    }
+
+    function renderCommunity() {
+      const box = $("#communityList");
+      if (!community.length) {
+        box.innerHTML = `<p class="hint">Community greens file missing.</p>`;
+        return;
+      }
+      const have = new Set(profile.courses.map(c => c.slug));
+      box.innerHTML = community.map((c, i) => `
+        <label class="list-item" style="cursor:pointer">
+          <span>
+            <input type="checkbox" data-ci="${i}" ${have.has(c.slug) ? "disabled" : ""} />
+            ${c.name}
+            <span style="color:var(--muted)">${have.has(c.slug) ? "(already added)" : c.holes.length + " holes"}</span>
+          </span>
+        </label>
+      `).join("");
+    }
+
+    $("#addClub").addEventListener("click", () => $("#clubLines").appendChild(clubRow()));
+    $("#addDefaults").addEventListener("click", () => {
+      renderClubLines([
+        { id: "Driver" }, { id: "3W" }, { id: "Hybrid" }, { id: "5i" }, { id: "6i" }, { id: "7i" },
+        { id: "8i" }, { id: "9i" }, { id: "PW" }, { id: "AW" }, { id: "SW" }, { id: "60" },
+      ]);
+      $("#bagMsg").className = "msg";
+      $("#bagMsg").textContent = "Blank 12-club bag loaded. Type average carry for each club you carry.";
+    });
+
+    $("#saveBag").addEventListener("click", () => {
+      const msg = $("#bagMsg");
+      try {
+        const rows = readManualClubs();
+        if (!rows.length) throw new Error("Add at least one club with an average carry.");
+        const clubs = rows.map(r => StudioProfile.clubFromSimple(r));
+        profile.name = $("#playerName").value.trim();
+        profile.bag = StudioProfile.bagFromClubs(clubs, profile.name || "My bag");
+        StudioProfile.save(profile);
+        const extras = rows.filter(r => r.smash || r.spin || r.apex || r.ballSpeed || r.clubSpeed).length;
+        msg.className = "msg";
+        msg.textContent = extras
+          ? `Saved ${clubs.length} clubs with some extra averages filled in.`
+          : `Saved ${clubs.length} clubs from average carry. Other stats are estimated until you import a session file.`;
+        renderBagSummary();
+      } catch (e) {
+        msg.className = "msg err";
+        msg.textContent = e.message;
+      }
+    });
+
+    function importCsvText(text) {
+      const msg = $("#csvMsg");
+      try {
+        profile.name = $("#playerName").value.trim() || profile.name;
+        profile.bag = StudioProfile.bagFromCsv(text);
+        StudioProfile.save(profile);
+        msg.className = "msg";
+        msg.textContent = `Imported ${profile.bag.clubs.length} clubs from CSV.`;
+        renderClubLines(profile.bag.clubs);
+        renderBagSummary();
+      } catch (e) {
+        msg.className = "msg err";
+        msg.textContent = e.message;
+      }
+    }
+
+    $("#importCsv").addEventListener("click", () => importCsvText($("#csvText").value));
+    $("#csvFile").addEventListener("change", async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      importCsvText(await f.text());
+    });
+
+    $("#addSelected").addEventListener("click", () => {
+      const msg = $("#courseMsg");
+      const picks = $$("#communityList input[data-ci]:checked:not(:disabled)");
+      if (!picks.length) {
+        msg.className = "msg err";
+        msg.textContent = "Select at least one course.";
+        return;
+      }
+      const have = new Set(profile.courses.map(c => c.slug));
+      let n = 0;
+      picks.forEach(p => {
+        const c = community[Number(p.dataset.ci)];
+        if (c && !have.has(c.slug)) {
+          profile.courses.push(JSON.parse(JSON.stringify(c)));
+          have.add(c.slug);
+          n++;
+        }
+      });
+      StudioProfile.save(profile);
+      msg.className = "msg";
+      msg.textContent = `Added ${n} course${n === 1 ? "" : "s"}.`;
+      renderCommunity();
+      renderMyCourses();
+    });
+
+    $("#greensFile").addEventListener("change", async (e) => {
+      const msg = $("#greensMsg");
+      const f = e.target.files?.[0];
+      if (!f) return;
+      try {
+        let text = await f.text();
+        if (text.includes("GPS_COURSES")) {
+          text = text.replace(/^[\s\S]*?GPS_COURSES\s*=\s*/, "").replace(/;\s*$/, "");
+        }
+        let data = JSON.parse(text);
+        if (!Array.isArray(data)) data = [data];
+        const have = new Set(profile.courses.map(c => c.slug));
+        let n = 0;
+        for (const c of data) {
+          if (!c?.holes?.length) continue;
+          if (!c.slug) c.slug = (c.name || "course").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+          if (have.has(c.slug)) continue;
+          profile.courses.push(c);
+          have.add(c.slug);
+          n++;
+        }
+        StudioProfile.save(profile);
+        msg.className = "msg";
+        msg.textContent = `Imported ${n} course${n === 1 ? "" : "s"}.`;
+        renderMyCourses();
+        renderCommunity();
+      } catch (err) {
+        msg.className = "msg err";
+        msg.textContent = err.message;
+      }
+    });
+
+    $("#exportCourses").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(profile.courses, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "ai-caddie-courses.json";
+      a.click();
+    });
+
+    $("#exportProfile").addEventListener("click", () => {
+      const blob = new Blob([StudioProfile.exportJson(profile)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "ai-caddie-profile.json";
+      a.click();
+      $("#backupMsg").textContent = "Downloaded.";
+      $("#backupMsg").className = "msg";
+    });
+
+    $("#importProfile").addEventListener("change", async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      try {
+        profile = StudioProfile.importJson(await f.text());
+        $("#playerName").value = profile.name || "";
+        renderClubLines(profile.bag?.clubs || []);
+        renderBagSummary();
+        renderMyCourses();
+        renderCommunity();
+        $("#backupMsg").className = "msg";
+        $("#backupMsg").textContent = "Profile imported.";
+      } catch (err) {
+        $("#backupMsg").className = "msg err";
+        $("#backupMsg").textContent = err.message;
+      }
+    });
+
+    $("#resetAll").addEventListener("click", () => {
+      if (!confirm("Clear bag and courses on this device?")) return;
+      StudioProfile.clear();
+      profile = StudioProfile.emptyProfile();
+      $("#playerName").value = "";
+      renderClubLines([]);
+      renderBagSummary();
+      renderMyCourses();
+      renderCommunity();
+      $("#backupMsg").className = "msg";
+      $("#backupMsg").textContent = "Cleared.";
+    });
+
+    renderClubLines(profile.bag?.clubs || []);
+    renderBagSummary();
+    renderMyCourses();
+    renderCommunity();
+  </script>
+</body>
+</html>

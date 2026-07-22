@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07110E" />
+  <title>Prompts · AI Caddie Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #07110E; --surface: #12261F; --bg-2: #0D1C17;
+      --line: rgba(232,240,234,0.12); --text: #EEF5F0; --muted: #8FA89A;
+      --accent: #9BE56E; --font: "Sora", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh; font-family: var(--font); color: var(--text);
+      background: linear-gradient(180deg, #0A1813 0%, var(--bg) 45%, #050C0A 100%);
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 28px 16px 48px; }
+    a { color: var(--accent); }
+    header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; gap: 12px; }
+    h1 { font-size: 1.45rem; letter-spacing: -0.02em; }
+    h1 span { color: var(--accent); }
+    .lead { color: var(--muted); line-height: 1.55; margin-bottom: 20px; font-size: 0.95rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+      padding: 16px; margin-bottom: 14px;
+    }
+    .card h2 { font-size: 1rem; margin-bottom: 6px; }
+    .card p { color: var(--muted); font-size: 0.88rem; line-height: 1.5; margin-bottom: 10px; }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    .btn {
+      border: none; border-radius: 10px; padding: 10px 12px; font-weight: 700;
+      font: inherit; cursor: pointer; font-size: 0.82rem;
+    }
+    .btn.primary { background: var(--accent); color: #07110E; }
+    .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); }
+    pre {
+      background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px;
+      padding: 12px; overflow: auto; max-height: 320px; white-space: pre-wrap;
+      word-break: break-word; font-size: 0.72rem; line-height: 1.45; color: #d7e6dc;
+    }
+    .toast {
+      position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+      background: var(--accent); color: #07110E; font-weight: 700; font-size: 0.85rem;
+      padding: 10px 14px; border-radius: 999px; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .toast.on { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>AI <span>Caddie</span> prompts</h1>
+      <a href="index.html">Studio home</a>
+    </header>
+    <p class="lead">
+      Copy a prompt, paste it into Claude, Cursor, ChatGPT, or any coding AI, fill in your bag and course, and let it build an AI Caddie or yardage book PDF. No design work required.
+    </p>
+
+    <div class="card" data-prompt="a">
+      <h2>A · Instant AI Caddie</h2>
+      <p>Builds a full mobile web caddie (Play, Live GPS, Bag, Compare, Insights, Guide) from your bag data and courses.</p>
+      <div class="toolbar">
+        <button type="button" class="btn primary copy">Copy prompt A</button>
+      </div>
+      <pre id="prompt-a"></pre>
+    </div>
+
+    <div class="card" data-prompt="b">
+      <h2>B · Instant yardage book PDF</h2>
+      <p>Builds a printable OSM based yardage book for one course and tee set.</p>
+      <div class="toolbar">
+        <button type="button" class="btn primary copy">Copy prompt B</button>
+      </div>
+      <pre id="prompt-b"></pre>
+    </div>
+
+    <div class="card" data-prompt="c">
+      <h2>C · Both</h2>
+      <p>Yardage book plus matching AI Caddie with those greens wired into Live GPS.</p>
+      <div class="toolbar">
+        <button type="button" class="btn primary copy">Copy prompt C</button>
+      </div>
+      <pre id="prompt-c"></pre>
+    </div>
+
+    <div class="card" data-prompt="d">
+      <h2>D · Files for this Studio</h2>
+      <p>Asks the AI to produce CSV + greens JSON you can upload on the Setup page here.</p>
+      <div class="toolbar">
+        <button type="button" class="btn primary copy">Copy prompt D</button>
+        <a class="btn ghost" href="setup.html">Open Setup</a>
+      </div>
+      <pre id="prompt-d"></pre>
+    </div>
+  </div>
+  <div class="toast" id="toast">Copied</div>
+
+  <script>
+    const PROMPTS = {
+a: `Build me a mobile-first web app called "AI Caddie" that works like a production on-course golf caddie.
+
+GOAL
+A single deployable folder (or GitHub Pages site) that looks polished and professional, dark fairway-green theme, fonts Sora + Oswald from Google Fonts. Brand name: AI Caddie.
+
+TABS (bottom nav)
+1) Play — type a yardage, get best club + 2 alternates from MY bag (stock carry). Include tip text. No "Full stats" button.
+2) Live — browser Geolocation GPS. Course + hole picker. Front / Middle / Back distances to green. Optional satellite drop-a-pin (Leaflet + Esri World Imagery). Club call to middle or pin. If elevation grids are available, show plays-like (about 1 yd per 3 ft).
+3) Bag — list clubs by stock carry; tap for full stats (carry, total, window, stdev, consistency, ball/club speed, smash, apex, spin, axis, offline, spread) and vs PGA / scratch / 10 HCP table.
+4) Compare — bars vs PGA / Scratch / 10 HCP with filter chips: Carry, Total, Ball mph, Club mph, Smash, Spin, Apex.
+5) Insights — KPIs, gapping, consistency, miss tendencies, short on-course notes.
+6) Guide — how each tab works + what each metric means.
+
+COPY RULES
+Never use em dashes or en dashes in user-facing descriptions. Prefer periods and commas. Ranges say "10 to 15" not "10-15".
+
+MY BAG DATA
+Use this as the source of truth (parse it; do not invent distances).
+
+Minimum: average carry (yards) per club is enough for Play club calls.
+Optional averages if known: total, smash, spin, apex, ball speed, club speed.
+A full launch-monitor CSV (shot by shot) is more accurate for Compare and Insights. Without it, estimate missing fields and note in Guide that they are estimates.
+
+<<<PASTE YOUR LAUNCH MONITOR CSV OR CLUB LIST HERE>>>
+Example if you only know carry:
+Driver 250
+3W 215
+Hybrid 200
+5i 190
+6i 180
+7i 172
+8i 156
+9i 145
+PW 127
+AW 118
+SW 92
+60 75
+
+Optional richer list (carry / total):
+Driver 250 / 270
+7i 172 / 183
+
+Include PGA / scratch / 10-handicap benchmark carries (and estimated speeds/spin/apex for scratch and 10 HCP scaled from PGA).
+
+MY COURSES FOR GPS
+<<<LIST COURSE NAMES + CITY/STATE, OR PASTE greens JSON>>>
+If only names are given: fetch OpenStreetMap golf=hole and golf=green for each course (Overpass), compute front/middle/back relative to approach direction, embed as GPS_COURSES. If OSM is incomplete, say so and still ship Play/Bag/Compare/Insights.
+
+OUTPUT
+- index.html (and any small JS/CSS files needed)
+- README with: how to open locally, how to publish to GitHub Pages, how to Add to Home Screen on iPhone`,
+
+b: `Generate a printable golf yardage book PDF for this course using the OpenYardage / openyardage-web approach (OSM features + elevation contours + hole strategy notes).
+
+COURSE
+Name: <<<COURSE NAME>>>
+Location: <<<CITY, STATE / COUNTRY>>>
+Tees: <<<e.g. Blue / second farthest>>>
+
+REQUIREMENTS
+- 18 holes (or however many the course has), one hole per page style booklet + cover
+- Real OSM features only (fairways, greens, bunkers, water, tees). Nothing synthetic.
+- Correct hole selection when OSM has duplicates (prefer tip inside green, scorecard par/yardage match)
+- Green contour inset from elevation/lidar when available; skip mismatched grids
+- Strategy notes for tee / approach / green that are specific (where to aim, what to avoid). No fluff like "go for birdie". No dashes in the notes.
+- Scorecard yardages/pars/handicaps for the chosen tees if you can source them; otherwise note the source gap
+- Output a PDF plus a short README of how you built it
+
+If you need the existing toolchain, use or recreate scripts similar to:
+- fetch OSM by bbox or course area
+- fetch elevation grid
+- fetch per-green elevation
+- render hole pages and assemble PDF with Playwright
+
+Deliver the PDF path when done and a 3-bullet summary of any data quality issues (missing fairways, bad greens, etc.).`,
+
+c: `I want two deliverables for my golf game:
+
+1) AI CADDIE web app (GitHub Pages ready)
+2) Yardage book PDF for my course
+
+Do the yardage book first if course data helps GPS greens. Then embed those greens into the AI Caddie Live GPS tab.
+
+MY BAG
+<<<PASTE CSV OR CLUB LIST>>>
+
+MY COURSE
+<<<NAME, CITY/STATE, TEE SET>>>
+
+AI CADDIE REQUIREMENTS
+Mobile-first, brand "AI Caddie", dark fairway-green, Sora + Oswald.
+Tabs: Play, Live GPS (F/M/B + pin + optional plays-like), Bag detail, Compare with stat filters, Insights, Guide.
+Club calls from my stock carries. No em/en dashes in user-facing copy.
+Deployable to GitHub Pages with README for iPhone Add to Home Screen.
+
+YARDAGE BOOK REQUIREMENTS
+OpenYardage style PDF from real OSM only (no synthetic fairways), elevation green contours when valid, specific strategy notes (tee/approach/green), correct tee set yardages when available.
+
+Ship /caddie site files, /output PDF, and a short README.`,
+
+d: `Convert my bag and course into files for AI Caddie Studio
+(https://jriordan55.github.io/ai-caddie-studio/).
+
+Return:
+1) A club table with at least average carry per club (enough for Setup), OR a launch-monitor CSV if I have shot data (more accurate for spin/smash/consistency). Optional: total, smash, spin, apex averages if I know them.
+2) A GPS courses JSON array: [{ slug, name, tee, center:{lat,lon}, holes:[{ n, par, yds, ge, tee:{lat,lon}, f:{lat,lon}, m:{lat,lon}, b:{lat,lon} }] }]
+   Build greens from OpenStreetMap for: <<<COURSE NAME, CITY>>>
+3) Exact click-path in Studio Setup to import them.
+
+MY DATA
+<<<BAG + COURSE>>>`
+    };
+
+    Object.entries(PROMPTS).forEach(([k, v]) => {
+      document.getElementById("prompt-" + k).textContent = v;
+    });
+
+    const toast = document.getElementById("toast");
+    document.querySelectorAll(".card").forEach(card => {
+      card.querySelector(".copy")?.addEventListener("click", async () => {
+        const key = card.dataset.prompt;
+        try {
+          await navigator.clipboard.writeText(PROMPTS[key]);
+          toast.textContent = "Prompt " + key.toUpperCase() + " copied";
+          toast.classList.add("on");
+          setTimeout(() => toast.classList.remove("on"), 1600);
+        } catch {
+          toast.textContent = "Select the text and copy manually";
+          toast.classList.add("on");
+          setTimeout(() => toast.classList.remove("on"), 2000);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

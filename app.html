@@ -1,0 +1,2024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07110E" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AI Caddie" />
+  <meta name="description" content="AI Caddie: club calls, live GPS, and bag intelligence from your launch monitor data." />
+  <title>AI Caddie</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <style>
+    :root {
+      --bg: #07110E;
+      --bg-2: #0D1C17;
+      --surface: #12261F;
+      --surface-2: #18352B;
+      --line: rgba(232, 240, 234, 0.09);
+      --line-strong: rgba(232, 240, 234, 0.16);
+      --text: #EEF5F0;
+      --muted: #8FA89A;
+      --accent: #9BE56E;
+      --accent-2: #E8D48B;
+      --accent-dim: rgba(155, 229, 110, 0.12);
+      --warn: #E8C06A;
+      --danger: #E8907A;
+      --left: #7EB8E8;
+      --right: #E8C06A;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --nav-h: 68px;
+      --font: "Sora", system-ui, sans-serif;
+      --num: "Oswald", "Arial Narrow", sans-serif;
+      --radius: 16px;
+      --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100%;
+      background:
+        radial-gradient(ellipse 90% 50% at 80% -5%, rgba(155, 229, 110, 0.08), transparent 50%),
+        radial-gradient(ellipse 70% 40% at 10% 0%, rgba(232, 212, 139, 0.05), transparent 45%),
+        linear-gradient(180deg, #0A1813 0%, var(--bg) 38%, #050C0A 100%);
+      color: var(--text);
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button, input { font: inherit; color: inherit; }
+    button {
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100dvh;
+      padding: 14px 16px calc(var(--nav-h) + var(--safe-bottom) + 20px);
+      position: relative;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding: 10px 0 4px;
+      animation: brandIn 0.5s ease both;
+    }
+    @keyframes brandIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: none; }
+    }
+    .brand-mark {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+      border-radius: 12px;
+      background:
+        linear-gradient(145deg, rgba(155, 229, 110, 0.28), rgba(155, 229, 110, 0.06)),
+        var(--surface-2);
+      border: 1px solid var(--line-strong);
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .brand-icon::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(155, 229, 110, 0.25);
+    }
+    .brand-icon::after {
+      content: "";
+      position: absolute;
+      bottom: 8px;
+      width: 18px;
+      height: 2px;
+      background: var(--accent-2);
+      border-radius: 2px;
+      opacity: 0.85;
+    }
+    .brand-text { min-width: 0; }
+    .brand h1 {
+      font-family: var(--font);
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+    }
+    .brand h1 span {
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .brand p {
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 40%), var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+    .panel h2 {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .view { display: none; animation: rise 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
+    .view.active { display: block; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    /* —— Play —— */
+    .yard-hero {
+      background:
+        linear-gradient(160deg, rgba(155, 229, 110, 0.14), transparent 55%),
+        linear-gradient(180deg, rgba(255,255,255,0.03), transparent),
+        var(--surface);
+      border: 1px solid var(--line-strong);
+      border-radius: 20px;
+      padding: 20px 18px 18px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+    .yard-hero label {
+      display: block;
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .yard-row {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .yard-input {
+      flex: 1;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-family: var(--num);
+      font-size: 2.6rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-align: center;
+      outline: none;
+      width: 100%;
+    }
+    .yard-input:focus { border-color: var(--accent); }
+    .yard-unit {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      min-width: 72px;
+    }
+    .unit-btn {
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .unit-btn.on {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .quick-yards {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .quick-yards::-webkit-scrollbar { display: none; }
+    .chip {
+      flex: 0 0 auto;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-family: var(--num);
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .chip:active { background: var(--surface-2); }
+    .chip.on {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .pick {
+      margin-top: 4px;
+    }
+    .pick-club {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 12px;
+      align-items: end;
+      margin-bottom: 10px;
+    }
+    .pick-club .name {
+      font-family: var(--num);
+      font-size: 2.4rem;
+      font-weight: 700;
+      line-height: 0.95;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .pick-club .sub {
+      color: var(--muted);
+      font-size: 0.9rem;
+      grid-column: 1;
+    }
+    .pick-club .delta {
+      font-family: var(--num);
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-align: right;
+    }
+    .pick-meta {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .stat-tile {
+      background: var(--bg-2);
+      border-radius: 12px;
+      padding: 10px 8px;
+      text-align: center;
+    }
+    .stat-tile .k {
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .stat-tile .v {
+      font-family: var(--num);
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+    .alts {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .alt {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: var(--bg-2);
+      border-radius: 12px;
+      border: 1px solid transparent;
+    }
+    .alt strong {
+      font-family: var(--num);
+      font-size: 1.15rem;
+      letter-spacing: 0.03em;
+    }
+    .alt span { color: var(--muted); font-size: 0.85rem; }
+    .tip {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      background: var(--accent-dim);
+      border-left: 3px solid var(--accent);
+      font-size: 0.9rem;
+      line-height: 1.45;
+      color: var(--text);
+    }
+    .tip.warn {
+      background: rgba(232, 184, 109, 0.12);
+      border-left-color: var(--warn);
+    }
+
+    /* —— Bag —— */
+    .bag-list { display: flex; flex-direction: column; gap: 8px; }
+    .bag-row {
+      display: grid;
+      grid-template-columns: 64px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 13px 12px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.025), transparent), var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      width: 100%;
+      text-align: left;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+    .bag-row:active {
+      border-color: var(--accent);
+      transform: scale(0.99);
+    }
+    .bag-id {
+      font-family: var(--num);
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+    }
+    .bag-mid .name { font-weight: 600; font-size: 0.95rem; }
+    .bag-mid .meta { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+    .bag-yards {
+      text-align: right;
+    }
+    .bag-yards .carry {
+      font-family: var(--num);
+      font-size: 1.7rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .bag-yards .total {
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-top: 2px;
+    }
+    .bar {
+      height: 4px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 99px;
+      margin-top: 8px;
+      overflow: hidden;
+      grid-column: 1 / -1;
+    }
+    .bar > i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #5BBF7A);
+      border-radius: 99px;
+    }
+
+    /* —— Compare —— */
+    .seg {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 14px;
+      background: var(--bg-2);
+      padding: 4px;
+      border-radius: 12px;
+    }
+    .seg button {
+      padding: 10px 6px;
+      border-radius: 9px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .seg button.on {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+    .compare-row {
+      display: grid;
+      grid-template-columns: 52px 1fr 48px;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .compare-row .cid {
+      font-family: var(--num);
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--accent);
+    }
+    .track {
+      height: 10px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 99px;
+      position: relative;
+      overflow: visible;
+    }
+    .track .you {
+      position: absolute;
+      top: 0; bottom: 0; left: 0;
+      background: var(--accent);
+      border-radius: 99px;
+      opacity: 0.9;
+    }
+    .track .mark {
+      position: absolute;
+      top: -3px;
+      width: 2px;
+      height: 16px;
+      background: var(--warn);
+      border-radius: 2px;
+    }
+    .compare-row .diff {
+      font-family: var(--num);
+      font-weight: 700;
+      font-size: 1rem;
+      text-align: right;
+    }
+    .diff.pos { color: var(--accent); }
+    .diff.neg { color: var(--danger); }
+    .legend {
+      display: flex;
+      gap: 14px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .legend i {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      margin-right: 5px;
+      vertical-align: -1px;
+    }
+
+    /* —— Insights —— */
+    .insight-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .kpi .k {
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .kpi .v {
+      font-family: var(--num);
+      font-size: 1.8rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .kpi .s { color: var(--muted); font-size: 0.8rem; margin-top: 6px; }
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.92rem;
+    }
+    .list-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .list-item .left { color: var(--text); }
+    .list-item .right {
+      font-family: var(--num);
+      font-weight: 700;
+      font-size: 1.05rem;
+      white-space: nowrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .badge.ok { background: var(--accent-dim); color: var(--accent); }
+    .badge.warn { background: rgba(232,184,109,0.15); color: var(--warn); }
+    .badge.bad { background: rgba(224,122,106,0.15); color: var(--danger); }
+
+    /* —— Club detail —— */
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 40;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+    .sheet {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%) translateY(110%);
+      bottom: 0;
+      width: min(480px, 100%);
+      max-height: 88dvh;
+      overflow: auto;
+      background: var(--bg-2);
+      border-radius: 22px 22px 0 0;
+      border: 1px solid var(--line);
+      border-bottom: none;
+      z-index: 50;
+      padding: 12px 16px calc(24px + var(--safe-bottom));
+      transition: transform 0.28s ease;
+    }
+    .sheet.open { transform: translateX(-50%) translateY(0); }
+    .sheet-handle {
+      width: 40px; height: 4px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 99px;
+      margin: 4px auto 14px;
+    }
+    .sheet-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    .sheet-head h3 {
+      font-family: var(--num);
+      font-size: 2rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      line-height: 1;
+    }
+    .sheet-head .close {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      font-size: 1.2rem;
+      color: var(--muted);
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .vs-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin-bottom: 8px;
+    }
+    .vs-table th, .vs-table td {
+      padding: 8px 6px;
+      text-align: right;
+      border-bottom: 1px solid var(--line);
+    }
+    .vs-table th:first-child, .vs-table td:first-child { text-align: left; color: var(--muted); }
+    .vs-table th { color: var(--muted); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+    .vs-table .you { color: var(--accent); font-family: var(--num); font-weight: 700; font-size: 1.05rem; }
+
+    /* —— Nav —— */
+    .nav {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 0;
+      width: min(480px, 100%);
+      height: calc(var(--nav-h) + var(--safe-bottom));
+      padding: 10px 8px var(--safe-bottom);
+      background: rgba(7, 17, 14, 0.88);
+      backdrop-filter: blur(18px) saturate(1.2);
+      -webkit-backdrop-filter: blur(18px) saturate(1.2);
+      border-top: 1px solid var(--line-strong);
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      z-index: 30;
+    }
+    .nav button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 6px 2px;
+      border-radius: 12px;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+    .nav button.on {
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .guide-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .guide-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .guide-item h3 {
+      font-size: 0.92rem;
+      font-weight: 650;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .guide-item h3::before {
+      content: "";
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 8px;
+      vertical-align: middle;
+      transform: translateY(-1px);
+    }
+    .guide-item p {
+      color: var(--muted);
+      font-size: 0.84rem;
+      line-height: 1.55;
+      padding-left: 14px;
+    }
+    .nav .ico {
+      font-family: var(--num);
+      font-size: 1.2rem;
+      font-weight: 600;
+      line-height: 1;
+      letter-spacing: 0.02em;
+    }
+
+    .empty-hint {
+      color: var(--muted);
+      text-align: center;
+      padding: 24px 12px;
+      font-size: 0.95rem;
+    }
+
+    /* —— GPS —— */
+    .gps-status {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .gps-status .where { min-width: 0; }
+    .gps-status .course {
+      font-weight: 700;
+      font-size: 1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .gps-status .acc { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+    .gps-btn {
+      flex: 0 0 auto;
+      background: var(--accent);
+      border: 1px solid transparent;
+      color: #07110E;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-weight: 700;
+      font-size: 0.75rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .gps-btn.live {
+      background: rgba(232, 144, 122, 0.16);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+    .gps-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-right: 6px;
+      vertical-align: 1px;
+    }
+    .gps-btn.live .gps-dot { background: var(--danger); animation: blink 1.2s infinite; }
+    @keyframes blink { 50% { opacity: 0.25; } }
+
+    .hole-strip {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding: 2px 0 6px;
+      scrollbar-width: none;
+      margin-bottom: 10px;
+    }
+    .hole-strip::-webkit-scrollbar { display: none; }
+    .hole-chip {
+      flex: 0 0 auto;
+      min-width: 44px;
+      padding: 8px 0;
+      text-align: center;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-family: var(--num);
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+    .hole-chip.on {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .hole-chip .p { display: block; font-size: 0.6rem; color: var(--muted); font-weight: 600; }
+
+    .fmb {
+      display: grid;
+      grid-template-columns: 1fr 1.35fr 1fr;
+      gap: 10px;
+      align-items: stretch;
+      margin-bottom: 4px;
+    }
+    .fmb .cell {
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px 6px 10px;
+      text-align: center;
+    }
+    .fmb .cell.mid {
+      background:
+        linear-gradient(150deg, rgba(143, 217, 168, 0.14), transparent 60%),
+        var(--bg-2);
+      border-color: var(--accent);
+    }
+    .fmb .k {
+      font-size: 0.64rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    .fmb .v {
+      font-family: var(--num);
+      font-weight: 700;
+      font-size: 2rem;
+      line-height: 1;
+    }
+    .fmb .cell.mid .v { font-size: 3.1rem; color: var(--accent); }
+    .gps-sub {
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-align: center;
+      margin: 10px 0 0;
+    }
+
+    /* —— Pin —— */
+    .pin-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background:
+        linear-gradient(150deg, rgba(224, 122, 106, 0.12), transparent 60%),
+        var(--bg-2);
+      border: 1px solid var(--line);
+    }
+    .pin-bar.set { border-color: var(--danger); }
+    .pin-bar .pin-left { min-width: 0; }
+    .pin-bar .pin-k {
+      font-size: 0.62rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .pin-bar .pin-v {
+      font-family: var(--num);
+      font-weight: 700;
+      font-size: 1.9rem;
+      line-height: 1;
+      margin-top: 2px;
+    }
+    .pin-bar .pin-v small {
+      font-family: var(--font);
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-weight: 500;
+      margin-left: 6px;
+    }
+    .pin-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+    .pin-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+    .pin-btn.primary {
+      background: rgba(224, 122, 106, 0.16);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    /* —— Map picker —— */
+    .map-wrap {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      background: var(--bg);
+      display: none;
+      flex-direction: column;
+    }
+    .map-wrap.open { display: flex; }
+    .map-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px;
+      background: var(--bg-2);
+      border-bottom: 1px solid var(--line);
+    }
+    .map-head h3 {
+      font-family: var(--num);
+      font-size: 1.35rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .map-head .hint { color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
+    #pinMap { flex: 1; width: 100%; background: #0c1512; }
+    .map-foot {
+      display: flex;
+      gap: 10px;
+      padding: 12px 14px calc(14px + var(--safe-bottom));
+      background: var(--bg-2);
+      border-top: 1px solid var(--line);
+    }
+    .map-foot button {
+      flex: 1;
+      border-radius: 12px;
+      padding: 14px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-size: 0.82rem;
+    }
+    .map-foot .cancel { background: var(--surface); color: var(--muted); border: 1px solid var(--line); }
+    .map-foot .save { background: var(--accent); color: #06140D; }
+    .map-crosshair {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -100%);
+      z-index: 500;
+      pointer-events: none;
+      font-size: 2rem;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6));
+    }
+    .leaflet-container { background: #0c1512; font-family: var(--font); }
+    .gps-select {
+      width: 100%;
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--text);
+      padding: 12px;
+      font: inherit;
+      margin-bottom: 10px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    @media (min-width: 500px) {
+      .app { padding-top: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="brand">
+      <div class="brand-mark">
+        <div class="brand-icon" aria-hidden="true"></div>
+        <div class="brand-text">
+          <h1>AI <span>Caddie</span></h1>
+          <p id="brandSub">Your bag, your courses</p>
+        </div>
+      </div>
+      <a href="setup.html" style="color:var(--muted);font-size:0.75rem;font-weight:600;text-decoration:none;letter-spacing:0.06em;text-transform:uppercase">Setup</a>
+    </header>
+
+    <!-- PLAY -->
+    <section id="view-play" class="view active">
+      <div class="yard-hero">
+        <label for="yards">Yards to target</label>
+        <div class="yard-row">
+          <input id="yards" class="yard-input" type="number" inputmode="numeric" min="40" max="320" placeholder="150" value="150" />
+          <div class="yard-unit">
+            <button type="button" class="unit-btn on" data-mode="carry" id="mode-carry">Carry</button>
+            <button type="button" class="unit-btn" data-mode="total" id="mode-total">Total</button>
+          </div>
+        </div>
+        <div class="quick-yards" id="quickYards"></div>
+      </div>
+
+      <div class="panel pick" id="pickPanel">
+        <h2>Club call</h2>
+        <div id="pickResult"></div>
+      </div>
+    </section>
+
+    <!-- GPS -->
+    <section id="view-gps" class="view">
+      <div class="panel">
+        <div class="gps-status">
+          <div class="where">
+            <div class="course" id="gpsCourseName">Live GPS</div>
+            <div class="acc" id="gpsAcc">GPS off</div>
+          </div>
+          <button type="button" class="gps-btn" id="gpsToggle"><span class="gps-dot"></span>Start</button>
+        </div>
+        <select class="gps-select" id="gpsCourseSel" aria-label="Course"></select>
+        <div class="hole-strip" id="holeStrip"></div>
+        <div class="fmb">
+          <div class="cell"><div class="k">Front</div><div class="v" id="dF">-</div></div>
+          <div class="cell mid"><div class="k">Middle</div><div class="v" id="dM">-</div></div>
+          <div class="cell"><div class="k">Back</div><div class="v" id="dB">-</div></div>
+        </div>
+        <div class="pin-bar" id="pinBar">
+          <div class="pin-left">
+            <div class="pin-k">Pin</div>
+            <div class="pin-v" id="pinV">Not set</div>
+          </div>
+          <div class="pin-actions" id="pinActions">
+            <button type="button" class="pin-btn primary" id="pinSetBtn">Drop pin</button>
+          </div>
+        </div>
+        <p class="gps-sub" id="gpsSub">Start GPS on the course, or pick a course and hole to see the call.</p>
+      </div>
+
+      <div class="panel pick">
+        <h2 id="gpsPickHead">Club call to middle</h2>
+        <div id="gpsPickResult"><p class="empty-hint">Waiting for a distance…</p></div>
+      </div>
+    </section>
+
+    <!-- BAG -->
+    <section id="view-bag" class="view">
+      <div class="panel" style="margin-bottom:10px">
+        <h2>Stock carry, tap for detail</h2>
+        <p style="color:var(--muted);font-size:0.85rem;margin-top:-6px;margin-bottom:4px">
+          Use carry to the number. Total includes roll.
+        </p>
+      </div>
+      <div class="bag-list" id="bagList"></div>
+    </section>
+
+    <!-- COMPARE -->
+    <section id="view-compare" class="view">
+      <div class="panel">
+        <h2 id="compareHead">Carry vs benchmarks</h2>
+        <div class="seg" id="benchSeg">
+          <button type="button" class="on" data-bench="pga">PGA Tour</button>
+          <button type="button" data-bench="scratch">Scratch</button>
+          <button type="button" data-bench="am10">10 HCP</button>
+        </div>
+        <div id="statSeg" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+          <button type="button" class="chip on" data-stat="carry">Carry</button>
+          <button type="button" class="chip" data-stat="total">Total</button>
+          <button type="button" class="chip" data-stat="ballSpeed">Ball mph</button>
+          <button type="button" class="chip" data-stat="clubSpeed">Club mph</button>
+          <button type="button" class="chip" data-stat="smash">Smash</button>
+          <button type="button" class="chip" data-stat="spin">Spin</button>
+          <button type="button" class="chip" data-stat="apex">Apex</button>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--accent)"></i>You</span>
+          <span><i style="background:var(--warn)"></i>Benchmark</span>
+        </div>
+        <div id="compareList"></div>
+      </div>
+      <div class="panel">
+        <h2>Bag snapshot</h2>
+        <div id="snapshot"></div>
+      </div>
+    </section>
+
+    <!-- INSIGHTS -->
+    <section id="view-insights" class="view">
+      <div class="insight-grid" id="kpis"></div>
+      <div class="panel">
+        <h2>On-course notes</h2>
+        <div id="notes"></div>
+      </div>
+      <div class="panel">
+        <h2>Gapping (stock carry)</h2>
+        <div id="gaps"></div>
+      </div>
+      <div class="panel">
+        <h2>Most consistent clubs</h2>
+        <div id="consistency"></div>
+      </div>
+      <div class="panel">
+        <h2>Miss tendencies</h2>
+        <div id="misses"></div>
+      </div>
+    </section>
+
+    <!-- GUIDE -->
+    <section id="view-guide" class="view">
+      <div class="panel">
+        <h2>How to use each tab</h2>
+        <div class="guide-item">
+          <h3>Play</h3>
+          <p>Type a yardage (or tap a quick number) and get the best club from your bag, plus two alternates. Switch between carry and total depending on whether the shot needs to fly the number or can run out.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Live</h3>
+          <p>On-course GPS. Tap Start and allow location. It finds your course and hole automatically, shows front, middle, and back of the green, and calls a club. Drop a pin on the satellite map to get distances to the actual hole location instead of the middle. When there is an elevation change it shows a "plays like" number and uses that for the club call.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Bag</h3>
+          <p>Every club with its stock carry. Tap a club for the full stat sheet: carry, total, window, consistency, speeds, smash, apex, spin, miss pattern, and how each number stacks up against PGA, scratch, and 10-handicap benchmarks.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Compare</h3>
+          <p>Each club against PGA Tour, scratch, or 10-handicap benchmarks. Use the stat chips to switch what's being compared: carry, total, ball speed, club speed, smash, spin, or apex. The green bar is you, the yellow mark is the benchmark.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Insights</h3>
+          <p>The takeaways: strongest and weakest clubs, gapping problems, and miss patterns to play around on the course.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>What each metric means</h2>
+        <div class="guide-item">
+          <h3>Carry</h3>
+          <p>How far the ball flies in the air before it lands, in yards. This is the number that matters for clearing bunkers, water, and false fronts.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Total</h3>
+          <p>Carry plus roll, where the ball finishes. Use it for tee shots and running approaches.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Stock carry</h3>
+          <p>Your reliable carry for a club, with your best and worst shot trimmed off so one flush strike or one chunk doesn't skew it. Club calls are based on this number.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Window</h3>
+          <p>Your shortest and longest carry with that club. If trouble sits inside the window, the club can find it.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Consistency (0 to 100)</h3>
+          <p>How repeatable your distance is with that club. Higher is tighter. Below about 70, expect a wider spread and favor the safe miss.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Smash factor</h3>
+          <p>Ball speed divided by club speed, a measure of strike quality. Driver around 1.45+ is efficient. A low number means off center contact, not lack of speed.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Spin (rpm)</h3>
+          <p>Backspin rate. Wedges spin high (9k to 10k) and stop fast. Driver spins low (2k to 3k) and runs out. Unusually low spin on an iron usually means a flyer that goes long.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Spin axis / miss bias</h3>
+          <p>Which way your shots curve on average. Negative or "L" means draw/left, positive or "R" means fade/right. Aim to let your typical curve work toward the target.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Apex</h3>
+          <p>Peak height of the shot in feet. Higher apex lands steeper and stops faster. Lower flight runs out more and handles wind better.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Offline / spread</h3>
+          <p>Offline is average yards left or right of the target line. Spread is the width from your furthest left miss to furthest right, the dispersion corridor you need to leave yourself.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Gapping</h3>
+          <p>The yardage difference between neighboring clubs. Ideal is 10 to 15 yards. A big gap leaves in between distances. A small gap means two clubs do the same job.</p>
+        </div>
+        <div class="guide-item">
+          <h3>Plays like</h3>
+          <p>GPS distance adjusted for elevation, using roughly one yard per three feet of change. Uphill adds, downhill subtracts. It does not account for wind or temperature.</p>
+        </div>
+        <div class="guide-item">
+          <h3>F / M / B</h3>
+          <p>Distance to the front, middle, and back of the green. Front tells you what you must carry, back tells you what is too much.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <nav class="nav" aria-label="Main">
+    <button type="button" class="on" data-view="play"><span class="ico">YD</span>Play</button>
+    <button type="button" data-view="gps"><span class="ico">GPS</span>Live</button>
+    <button type="button" data-view="bag"><span class="ico">BAG</span>Bag</button>
+    <button type="button" data-view="compare"><span class="ico">VS</span>Compare</button>
+    <button type="button" data-view="insights"><span class="ico">IQ</span>Insights</button>
+    <button type="button" data-view="guide"><span class="ico">?</span>Guide</button>
+  </nav>
+
+  <div class="map-wrap" id="mapWrap" aria-hidden="true">
+    <div class="map-head">
+      <div>
+        <h3 id="mapTitle">Drop the pin</h3>
+        <div class="hint" id="mapHint">Pinch to zoom, drag the green so the flag sits under the marker</div>
+      </div>
+      <button type="button" class="close" id="mapClose" aria-label="Close" style="width:36px;height:36px;border-radius:50%;background:var(--surface);font-size:1.2rem;color:var(--muted)">×</button>
+    </div>
+    <div id="pinMap">
+      <div class="map-crosshair">📍</div>
+    </div>
+    <div class="map-foot">
+      <button type="button" class="cancel" id="mapCancel">Cancel</button>
+      <button type="button" class="save" id="mapSave">Save pin</button>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="backdrop"></div>
+  <aside class="sheet" id="sheet" aria-hidden="true">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div>
+        <h3 id="sheetTitle">Club</h3>
+        <p id="sheetSub" style="color:var(--muted);margin-top:6px;font-size:0.85rem"></p>
+      </div>
+      <button type="button" class="close" id="sheetClose" aria-label="Close">×</button>
+    </div>
+    <div id="sheetBody"></div>
+  </aside>
+
+  <script src="js/profile.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    (function boot() {
+      const profile = StudioProfile.load();
+      if (!StudioProfile.hasBag(profile)) {
+        location.replace("setup.html");
+        return;
+      }
+      window.GOLF_DATA = profile.bag;
+      window.GPS_COURSES = profile.courses || [];
+      const sub = document.getElementById("brandSub");
+      if (sub) {
+        const n = profile.name ? profile.name + " · " : "";
+        sub.textContent = `${n}${profile.bag.clubs.length} clubs, ${(profile.courses || []).length} courses`;
+      }
+    })();
+
+    const DATA = window.GOLF_DATA;
+    const clubs = DATA.clubs;
+    const byId = Object.fromEntries(clubs.map(c => [c.id, c]));
+    let maxCarry = Math.max(1, ...clubs.map(c => c.carry));
+
+    let mode = "carry"; // carry | total
+    let bench = "pga"; // pga | scratch | am10
+
+    const $ = (sel, el = document) => el.querySelector(sel);
+    const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
+
+    function fmt(n, d = 0) {
+      return Number(n).toFixed(d);
+    }
+    function signed(n, d = 0) {
+      const v = Number(n);
+      return (v > 0 ? "+" : "") + v.toFixed(d);
+    }
+
+    /* —— Shot deletes (persist across reloads) —— */
+    const DEL_KEY = "bagbook_deleted_shots_v1";
+    function loadDeleted() {
+      try { return JSON.parse(localStorage.getItem(DEL_KEY)) || {}; } catch { return {}; }
+    }
+    function saveDeleted(map) {
+      try { localStorage.setItem(DEL_KEY, JSON.stringify(map)); } catch {}
+    }
+    let deletedShots = loadDeleted(); // { clubId: number[] }
+
+    // Keep pristine shot lists so restores work
+    clubs.forEach(c => { c._allShots = c.shotList.map(s => ({ ...s })); });
+
+    function mean(vals) {
+      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    }
+    function sampleStdev(vals) {
+      if (vals.length < 2) return 0;
+      const m = mean(vals);
+      return Math.sqrt(vals.reduce((s, v) => s + (v - m) ** 2, 0) / (vals.length - 1));
+    }
+    function trimmedMean(vals) {
+      if (vals.length <= 2) return mean(vals);
+      const sorted = [...vals].sort((a, b) => a - b);
+      return mean(sorted.slice(1, -1));
+    }
+    function parseAxis(label) {
+      if (label == null || label === "0") return 0;
+      const s = String(label);
+      const n = parseFloat(s);
+      if (!Number.isFinite(n)) return 0;
+      if (s.includes("L")) return -Math.abs(n);
+      if (s.includes("R")) return Math.abs(n);
+      return n;
+    }
+    function missFromAxis(axis) {
+      if (axis <= -2) return "Left / draw";
+      if (axis >= 2) return "Right / fade";
+      return "Neutral";
+    }
+
+    function recomputeClub(c) {
+      const gone = new Set(deletedShots[c.id] || []);
+      const shots = c._allShots.filter(s => !gone.has(s.n));
+      c.shotList = shots;
+      c.shots = shots.length;
+      if (!shots.length) {
+        c.carry = 0; c.stock = 0; c.total = 0;
+        c.min = 0; c.max = 0; c.stdev = 0; c.consistency = 0;
+        c.smash = 0; c.spin = 0; c.apex = 0; c.ballSpeed = 0; c.clubSpeed = 0;
+        c.axis = 0; c.offline = 0; c.spread = 0;
+        c.miss = "-";
+        c.vsPga = -c.pga.carry; c.vsScratch = -c.scratch; c.vsAm10 = -c.am10;
+        return;
+      }
+      const carries = shots.map(s => s.carry);
+      const totals = shots.map(s => s.total);
+      const axes = shots.map(s => parseAxis(s.axis));
+      const offs = shots.map(s => s.offline);
+      c.carry = Math.round(mean(carries) * 10) / 10;
+      c.stock = Math.round(trimmedMean(carries) * 10) / 10;
+      c.total = Math.round(mean(totals) * 10) / 10;
+      c.min = Math.min(...carries);
+      c.max = Math.max(...carries);
+      c.stdev = Math.round(sampleStdev(carries) * 10) / 10;
+      c.consistency = Math.max(0, Math.min(100, Math.round(100 - (c.stdev / c.carry) * 400)));
+      c.smash = Math.round(mean(shots.map(s => s.smash)) * 100) / 100;
+      c.spin = Math.round(mean(shots.map(s => s.spin)));
+      c.apex = Math.round(mean(shots.map(s => s.apex ?? 0)) * 10) / 10;
+      c.ballSpeed = Math.round(mean(shots.map(s => s.ballSpeed ?? 0)) * 10) / 10;
+      c.clubSpeed = Math.round(mean(shots.map(s => s.clubSpeed ?? 0)) * 10) / 10;
+      c.axis = Math.round(mean(axes) * 10) / 10;
+      c.offline = Math.round(mean(offs) * 10) / 10;
+      c.spread = Math.round((Math.max(...offs) - Math.min(...offs)) * 10) / 10;
+      c.miss = missFromAxis(c.axis);
+      c.vsPga = Math.round((c.carry - c.pga.carry) * 10) / 10;
+      c.vsScratch = Math.round((c.carry - c.scratch) * 10) / 10;
+      c.vsAm10 = Math.round((c.carry - c.am10) * 10) / 10;
+    }
+
+    function recomputeGaps() {
+      DATA.gaps = [];
+      for (let i = 0; i < clubs.length - 1; i++) {
+        DATA.gaps.push({
+          from: clubs[i].id,
+          to: clubs[i + 1].id,
+          gap: Math.round((clubs[i].stock - clubs[i + 1].stock) * 10) / 10,
+        });
+      }
+    }
+
+    function applyDeletes() {
+      clubs.forEach(recomputeClub);
+      recomputeGaps();
+      maxCarry = Math.max(1, ...clubs.map(c => c.carry));
+      const kept = clubs.reduce((s, c) => s + c.shots, 0);
+      DATA.session.shots = kept;
+    }
+
+    applyDeletes();
+
+    /* —— Navigation —— */
+    $$(".nav button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        $$(".nav button").forEach(b => b.classList.remove("on"));
+        btn.classList.add("on");
+        $$(".view").forEach(v => v.classList.remove("active"));
+        $(`#view-${btn.dataset.view}`).classList.add("active");
+      });
+    });
+
+    /* —— Play —— */
+    const quick = [80, 100, 120, 140, 150, 160, 175, 200, 220, 250];
+    const qy = $("#quickYards");
+    quick.forEach(y => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.textContent = y;
+      b.addEventListener("click", () => {
+        $("#yards").value = y;
+        renderPick();
+      });
+      qy.appendChild(b);
+    });
+
+    $$(".unit-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        mode = btn.dataset.mode;
+        $$(".unit-btn").forEach(b => b.classList.toggle("on", b === btn));
+        renderPick();
+      });
+    });
+
+    $("#yards").addEventListener("input", renderPick);
+
+    function clubDistance(c) {
+      return mode === "carry" ? c.stock : c.total;
+    }
+
+    function recommend(target) {
+      const scored = clubs.map(c => {
+        const d = clubDistance(c);
+        return { club: c, dist: d, err: Math.abs(d - target), under: d - target };
+      }).sort((a, b) => a.err - b.err);
+      return scored;
+    }
+
+    function clubCallHtml(target, ranked, useMode) {
+      const best = ranked[0];
+      const alts = ranked.slice(1, 3);
+      const c = best.club;
+      const delta = best.under;
+      const deltaLabel = delta >= 0
+        ? `${fmt(delta, 0)} yd long`
+        : `${fmt(Math.abs(delta), 0)} yd short`;
+
+      let tipClass = "tip";
+      let tip = `Stock ${useMode}: <strong>${fmt(best.dist, 0)} yd</strong>. Miss bias: <strong>${c.miss}</strong>.`;
+      if (c.consistency < 70) {
+        tipClass = "tip warn";
+        tip += ` This club was less consistent (±${fmt(c.stdev, 1)} yd). Favor the safer miss.`;
+      } else if (Math.abs(c.axis) >= 4) {
+        tipClass = "tip warn";
+        tip += ` Typical curve is ${c.miss.toLowerCase()}. Aim accordingly.`;
+      } else {
+        tip += ` Confidence is solid (${c.consistency}/100).`;
+      }
+
+      const between = ranked[0].err > 6 && ranked[1] && Math.abs(ranked[0].err - ranked[1].err) < 5;
+      if (between) {
+        tip += ` Close call with ${ranked[1].club.id}. Check lie and wind.`;
+      }
+      if (delta >= 15) {
+        tipClass = "tip warn";
+        tip += ` Stock ${c.id} flies ${fmt(delta, 0)} yd past. This is a partial swing. Choke down and swing smooth.`;
+      }
+
+      return `
+        <div class="pick-club">
+          <div class="name">${c.id}</div>
+          <div class="delta">${signed(delta, 0)}</div>
+          <div class="sub">${c.name}, ${deltaLabel} of target</div>
+        </div>
+        <div class="pick-meta">
+          <div class="stat-tile"><div class="k">Stock carry</div><div class="v">${fmt(c.stock, 0)}</div></div>
+          <div class="stat-tile"><div class="k">Avg total</div><div class="v">${fmt(c.total, 0)}</div></div>
+          <div class="stat-tile"><div class="k">Apex</div><div class="v">${fmt(c.apex, 0)}'</div></div>
+          <div class="stat-tile"><div class="k">Spin</div><div class="v">${c.spin}</div></div>
+          <div class="stat-tile"><div class="k">Smash</div><div class="v">${fmt(c.smash, 2)}</div></div>
+          <div class="stat-tile"><div class="k">Range</div><div class="v">${fmt(c.min, 0)} to ${fmt(c.max, 0)}</div></div>
+        </div>
+        <div class="alts">
+          ${alts.map(a => `
+            <div class="alt">
+              <div>
+                <strong>${a.club.id}</strong>
+                <div style="color:var(--muted);font-size:0.8rem;margin-top:2px">${a.club.name}</div>
+              </div>
+              <span>${fmt(a.dist, 0)} yd, ${signed(a.under, 0)}</span>
+            </div>
+          `).join("")}
+        </div>
+        <div class="${tipClass}">${tip}</div>
+      `;
+    }
+
+    function renderPick() {
+      const raw = Number($("#yards").value);
+      const box = $("#pickResult");
+      if (!raw || raw < 40) {
+        box.innerHTML = `<p class="empty-hint">Enter a yardage to get a club call.</p>`;
+        return;
+      }
+      const ranked = recommend(raw);
+      box.innerHTML = clubCallHtml(raw, ranked, mode);
+    }
+
+    /* —— Bag —— */
+    function renderBag() {
+      const list = $("#bagList");
+      list.innerHTML = clubs.map(c => `
+        <button type="button" class="bag-row" data-club="${c.id}">
+          <div class="bag-id">${c.id}</div>
+          <div class="bag-mid">
+            <div class="name">${c.name}</div>
+            <div class="meta">${c.miss}, ${c.spin} rpm, ${fmt(c.apex,0)}' apex</div>
+          </div>
+          <div class="bag-yards">
+            <div class="carry">${fmt(c.stock, 0)}</div>
+            <div class="total">total ${fmt(c.total, 0)}</div>
+          </div>
+          <div class="bar"><i style="width:${(c.stock / maxCarry) * 100}%"></i></div>
+        </button>
+      `).join("");
+      $$(".bag-row", list).forEach(btn => {
+        btn.addEventListener("click", () => openClub(btn.dataset.club));
+      });
+    }
+
+    /* —— Compare —— */
+    let compareStat = "carry";
+    const COMPARE_STATS = {
+      carry:     { label: "Carry",     unit: "yd",  dec: 0, you: c => c.carry,     pga: c => c.pga.carry, est: s => s.carry },
+      total:     { label: "Total",     unit: "yd",  dec: 0, you: c => c.total,     pga: c => c.pga.total, est: s => s.total },
+      ballSpeed: { label: "Ball speed", unit: "mph", dec: 0, you: c => c.ballSpeed, pga: c => c.pga.bs,    est: s => s.bs },
+      clubSpeed: { label: "Club speed", unit: "mph", dec: 0, you: c => c.clubSpeed, pga: c => c.pga.cs,    est: s => s.cs },
+      smash:     { label: "Smash",     unit: "",    dec: 2, you: c => c.smash,     pga: c => c.pga.smash, est: s => s.smash },
+      spin:      { label: "Spin",      unit: "rpm", dec: 0, you: c => c.spin,      pga: c => c.pga.spin,  est: s => s.spin },
+      apex:      { label: "Apex",      unit: "ft",  dec: 0, you: c => c.apex,      pga: c => c.pga.apex, est: s => s.apex },
+    };
+
+    $$("#benchSeg button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        bench = btn.dataset.bench;
+        $$("#benchSeg button").forEach(b => b.classList.toggle("on", b === btn));
+        renderCompare();
+      });
+    });
+    $$("#statSeg button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        compareStat = btn.dataset.stat;
+        $$("#statSeg button").forEach(b => b.classList.toggle("on", b === btn));
+        renderCompare();
+      });
+    });
+
+    function benchValue(c) {
+      const st = COMPARE_STATS[compareStat];
+      if (bench === "pga") return st.pga(c);
+      return st.est(benchStats(c, bench === "scratch" ? "scratch" : "am10"));
+    }
+
+    function renderCompare() {
+      const st = COMPARE_STATS[compareStat];
+      $("#compareHead").textContent = `${st.label} vs benchmarks`;
+      const scale = Math.max(...clubs.map(c => Math.max(st.you(c), benchValue(c)))) * 1.02;
+      $("#compareList").innerHTML = clubs.map(c => {
+        const you = st.you(c);
+        const b = benchValue(c);
+        const d = you - b;
+        return `
+          <div class="compare-row">
+            <div class="cid">${c.id}</div>
+            <div class="track">
+              <div class="you" style="width:${(you / scale) * 100}%"></div>
+              <div class="mark" style="left:${(b / scale) * 100}%"></div>
+            </div>
+            <div class="diff ${d >= 0 ? "pos" : "neg"}">${signed(d, st.dec)}</div>
+          </div>
+        `;
+      }).join("");
+
+      const diffs = clubs.map(c => st.you(c) - benchValue(c));
+      const avgVs = diffs.reduce((s, d) => s + d, 0) / diffs.length;
+      const longer = diffs.filter(d => d >= 0).length;
+      const unit = st.unit ? ` ${st.unit}` : "";
+      const top = clubs[0];
+      const mid = byId["7i"] || byId["6i"] || clubs[Math.min(2, clubs.length - 1)];
+      $("#snapshot").innerHTML = `
+        <div class="list-item"><span class="left">Avg ${st.label.toLowerCase()} vs ${benchLabel()}</span><span class="right ${avgVs>=0?"pos":""}" style="color:${avgVs>=0?"var(--accent)":"var(--danger)"}">${signed(avgVs, st.dec === 2 ? 2 : 1)}${unit}</span></div>
+        <div class="list-item"><span class="left">Clubs at or above</span><span class="right">${longer} / ${clubs.length}</span></div>
+        <div class="list-item"><span class="left">${top.id} vs PGA</span><span class="right">${signed(top.vsPga,0)} yd carry</span></div>
+        <div class="list-item"><span class="left">${mid.id} vs PGA</span><span class="right">${signed(mid.vsPga,0)} yd (tour avg ${mid.pga.carry})</span></div>
+        <div class="list-item"><span class="left">${top.id} smash</span><span class="right">${fmt(top.smash,2)} / PGA ${fmt(top.pga.smash,2)}</span></div>
+        <div class="list-item"><span class="left">${top.id} speed</span><span class="right">${fmt(top.clubSpeed,0)} mph / PGA ${top.pga.cs}</span></div>
+      `;
+    }
+
+    function benchLabel() {
+      return { pga: "PGA Tour", scratch: "Scratch", am10: "10 HCP" }[bench];
+    }
+
+    /* —— Insights —— */
+    function renderInsights() {
+      const bestCons = [...clubs].sort((a, b) => b.consistency - a.consistency)[0];
+      const widestGap = (DATA.gaps || []).length
+        ? [...DATA.gaps].sort((a, b) => b.gap - a.gap)[0]
+        : { from: "-", to: "-", gap: 0 };
+      const longest = clubs[0];
+      const mid = byId["7i"] || byId["6i"] || byId["8i"] || clubs[Math.min(3, clubs.length - 1)];
+
+      $("#kpis").innerHTML = `
+        <div class="kpi"><div class="k">${longest.id} carry</div><div class="v">${fmt(longest.stock,0)}</div><div class="s">${signed(longest.vsPga,0)} vs PGA</div></div>
+        <div class="kpi"><div class="k">${mid.id} carry</div><div class="v">${fmt(mid.stock,0)}</div><div class="s">${signed(mid.vsAm10,0)} vs 10 HCP</div></div>
+        <div class="kpi"><div class="k">Tightest club</div><div class="v">${bestCons.id}</div><div class="s">consistency ${bestCons.consistency}</div></div>
+        <div class="kpi"><div class="k">Biggest gap</div><div class="v">${fmt(widestGap.gap,0)}</div><div class="s">${widestGap.from} → ${widestGap.to} yd</div></div>
+      `;
+
+      const notes = [];
+      if (widestGap.gap >= 18) {
+        notes.push({
+          t: `Gap alert: ${widestGap.from} → ${widestGap.to} is ${fmt(widestGap.gap,0)} yd. On course, commit early or take more club and swing easy.`,
+          ok: false
+        });
+      }
+      clubs.filter(c => c.axis >= 2).slice(0, 2).forEach(c => {
+        notes.push({
+          t: `${c.id} misses right/fade on average (+${fmt(c.axis,0)}°). Aim left-center when it matters.`,
+          ok: false
+        });
+      });
+      clubs.filter(c => c.axis <= -3).slice(0, 2).forEach(c => {
+        notes.push({
+          t: `${c.id} draws left (~${fmt(c.axis,0)}°). Leave room left / tee for a right miss.`,
+          ok: false
+        });
+      });
+      const smashStar = [...clubs].sort((a, b) => b.smash - a.smash)[0];
+      if (smashStar?.smash >= 1.4) {
+        notes.push({
+          t: `${smashStar.id} smash ${fmt(smashStar.smash,2)} is efficient. Speed and launch are the main distance levers.`,
+          ok: true
+        });
+      }
+      notes.push({
+        t: `Bag covers ${fmt(longest.stock,0)} down to ${fmt(clubs[clubs.length - 1].stock,0)} yd stock carry across ${clubs.length} clubs.`,
+        ok: true
+      });
+
+      $("#notes").innerHTML = notes.map(n => `
+        <div class="list-item">
+          <span class="left">${n.t}</span>
+          <span class="badge ${n.ok ? "ok" : "warn"}">${n.ok ? "OK" : "Watch"}</span>
+        </div>
+      `).join("");
+
+      $("#gaps").innerHTML = DATA.gaps.map(g => {
+        const wide = g.gap >= 16;
+        return `<div class="list-item">
+          <span class="left">${g.from} → ${g.to}</span>
+          <span class="right" style="color:${wide ? "var(--warn)" : "var(--text)"}">${fmt(g.gap,1)} yd${wide ? " wide" : ""}</span>
+        </div>`;
+      }).join("");
+
+      const byCons = [...clubs].sort((a, b) => b.consistency - a.consistency);
+      $("#consistency").innerHTML = byCons.map(c => `
+        <div class="list-item">
+          <span class="left">${c.id} <span style="color:var(--muted)">±${fmt(c.stdev,1)} yd</span></span>
+          <span class="right">${c.consistency}</span>
+        </div>
+      `).join("");
+
+      $("#misses").innerHTML = clubs.map(c => {
+        const color = c.axis <= -2 ? "var(--left)" : c.axis >= 2 ? "var(--right)" : "var(--muted)";
+        return `<div class="list-item">
+          <span class="left">${c.id}</span>
+          <span class="right" style="color:${color}">${c.miss}, ${signed(c.axis,1)}°</span>
+        </div>`;
+      }).join("");
+    }
+
+    /* —— Club sheet —— */
+
+    /**
+     * Full benchmark stat lines for scratch and 10-HCP players, estimated by
+     * scaling published PGA numbers to each tier's carry (ball speed tracks
+     * carry nearly linearly; smash uses typical TrackMan values by level).
+     */
+    function benchStats(c, tier) {
+      const carry = tier === "scratch" ? c.scratch : c.am10;
+      const k = carry / c.pga.carry;
+      const smash = Math.max(1.0, c.pga.smash - (tier === "scratch" ? 0.02 : 0.06));
+      const bs = c.pga.bs * k;
+      return {
+        carry,
+        total: Math.round(c.pga.total * k),
+        bs: Math.round(bs),
+        cs: Math.round(bs / smash),
+        smash,
+        spin: Math.round(c.pga.spin * (tier === "scratch" ? 1 : 1.05) / 10) * 10,
+        apex: Math.round(c.pga.apex * (tier === "scratch" ? 0.95 : 0.88)),
+      };
+    }
+
+    function openClub(id) {
+      const c = byId[id];
+      if (!c) return;
+      const removed = (deletedShots[id] || []).length;
+      const sc = benchStats(c, "scratch");
+      const am = benchStats(c, "am10");
+      $("#sheetTitle").textContent = c.id;
+      $("#sheetSub").textContent = `${c.name}, ${c.shots} shots${removed ? `, ${removed} removed` : ""}`;
+      $("#sheetBody").innerHTML = `
+        <div class="metric-grid">
+          <div class="stat-tile"><div class="k">Stock carry</div><div class="v">${fmt(c.stock,0)}</div></div>
+          <div class="stat-tile"><div class="k">Avg carry</div><div class="v">${fmt(c.carry,0)}</div></div>
+          <div class="stat-tile"><div class="k">Avg total</div><div class="v">${fmt(c.total,0)}</div></div>
+          <div class="stat-tile"><div class="k">Window</div><div class="v">${fmt(c.min,0)} to ${fmt(c.max,0)}</div></div>
+          <div class="stat-tile"><div class="k">± Stdev</div><div class="v">${fmt(c.stdev,1)}</div></div>
+          <div class="stat-tile"><div class="k">Consistency</div><div class="v">${c.consistency}</div></div>
+          <div class="stat-tile"><div class="k">Ball speed</div><div class="v">${fmt(c.ballSpeed,0)}</div></div>
+          <div class="stat-tile"><div class="k">Club speed</div><div class="v">${fmt(c.clubSpeed,0)}</div></div>
+          <div class="stat-tile"><div class="k">Smash</div><div class="v">${fmt(c.smash,2)}</div></div>
+          <div class="stat-tile"><div class="k">Apex</div><div class="v">${fmt(c.apex,0)}'</div></div>
+          <div class="stat-tile"><div class="k">Spin</div><div class="v">${c.spin}</div></div>
+          <div class="stat-tile"><div class="k">Spin axis</div><div class="v">${signed(c.axis,1)}°</div></div>
+          <div class="stat-tile"><div class="k">Offline</div><div class="v">${signed(c.offline,1)}</div></div>
+          <div class="stat-tile"><div class="k">Spread</div><div class="v">${fmt(c.spread,1)}</div></div>
+          <div class="stat-tile"><div class="k">Miss</div><div class="v" style="font-size:1.05rem">${c.miss.split(" ")[0]}</div></div>
+          <div class="stat-tile"><div class="k">Shots used</div><div class="v">${c.shots}</div></div>
+        </div>
+        <h2 style="font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin:8px 0 8px">Vs benchmarks</h2>
+        <table class="vs-table">
+          <thead><tr><th></th><th>You</th><th>PGA</th><th>Scratch</th><th>10 HCP</th></tr></thead>
+          <tbody>
+            <tr><td>Carry</td><td class="you">${fmt(c.carry,0)}</td><td>${c.pga.carry}</td><td>${sc.carry}</td><td>${am.carry}</td></tr>
+            <tr><td>Total</td><td class="you">${fmt(c.total,0)}</td><td>${c.pga.total}</td><td>${sc.total}</td><td>${am.total}</td></tr>
+            <tr><td>Diff</td><td class="you">-</td><td>${signed(c.vsPga,0)}</td><td>${signed(c.vsScratch,0)}</td><td>${signed(c.vsAm10,0)}</td></tr>
+            <tr><td>Ball mph</td><td class="you">${fmt(c.ballSpeed,0)}</td><td>${c.pga.bs}</td><td>${sc.bs}</td><td>${am.bs}</td></tr>
+            <tr><td>Club mph</td><td class="you">${fmt(c.clubSpeed,0)}</td><td>${c.pga.cs}</td><td>${sc.cs}</td><td>${am.cs}</td></tr>
+            <tr><td>Smash</td><td class="you">${fmt(c.smash,2)}</td><td>${fmt(c.pga.smash,2)}</td><td>${fmt(sc.smash,2)}</td><td>${fmt(am.smash,2)}</td></tr>
+            <tr><td>Spin</td><td class="you">${c.spin}</td><td>${c.pga.spin}</td><td>${sc.spin}</td><td>${am.spin}</td></tr>
+            <tr><td>Apex</td><td class="you">${fmt(c.apex,0)}'</td><td>${c.pga.apex}'</td><td>${sc.apex}'</td><td>${am.apex}'</td></tr>
+          </tbody>
+        </table>
+        <p style="color:var(--muted);font-size:0.72rem;margin-top:2px">Scratch and 10 HCP speeds/spin are estimates scaled from PGA data.</p>
+      `;
+      $("#backdrop").classList.add("open");
+      $("#sheet").classList.add("open");
+      $("#sheet").setAttribute("aria-hidden", "false");
+    }
+
+    function closeSheet() {
+      $("#backdrop").classList.remove("open");
+      $("#sheet").classList.remove("open");
+      $("#sheet").setAttribute("aria-hidden", "true");
+    }
+    $("#backdrop").addEventListener("click", closeSheet);
+    $("#sheetClose").addEventListener("click", closeSheet);
+
+    /* —— Live GPS —— */
+    const COURSES = window.GPS_COURSES || [];
+    const gps = {
+      watchId: null,
+      pos: null,          // { lat, lon, acc }
+      courseIdx: -1,      // -1 = auto
+      activeCourse: null, // resolved course object
+      hole: 0,            // 0 = auto, else hole number
+      activeHole: null,   // resolved hole object
+    };
+
+    const YD_PER_M = 1.09361;
+    function distYd(a, b) {
+      const R = 6371000;
+      const toR = x => x * Math.PI / 180;
+      const dLat = toR(b.lat - a.lat);
+      const dLon = toR(b.lon - a.lon);
+      const h = Math.sin(dLat / 2) ** 2 +
+        Math.cos(toR(a.lat)) * Math.cos(toR(b.lat)) * Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h)) * YD_PER_M;
+    }
+
+    /** Bilinear sample of the embedded course elevation grid (meters). */
+    function courseElevAt(course, lat, lon) {
+      const e = course?.elev;
+      if (!e) return null;
+      const v = Math.max(0, Math.min(1, (lat - e.latmin) / (e.latmax - e.latmin)));
+      const u = Math.max(0, Math.min(1, (lon - e.lonmin) / (e.lonmax - e.lonmin)));
+      const rf = v * (e.h - 1), cf = u * (e.w - 1);
+      const r0 = Math.floor(rf), c0 = Math.floor(cf);
+      const r1 = Math.min(e.h - 1, r0 + 1), c1 = Math.min(e.w - 1, c0 + 1);
+      const tr = rf - r0, tc = cf - c0;
+      const g = (r, c) => e.g[r * e.w + c];
+      const top = g(r0, c0) * (1 - tc) + g(r0, c1) * tc;
+      const bot = g(r1, c0) * (1 - tc) + g(r1, c1) * tc;
+      return top * (1 - tr) + bot * tr;
+    }
+
+    /**
+     * Plays-like adjustment in yards for an elevation change.
+     * Caddie rule: ~1 yd per 3 ft of rise (add uphill, subtract downhill),
+     * capped so a bad GPS/DEM sample can't produce a silly number.
+     */
+    function elevAdjustYd(course, hole, pos) {
+      if (hole?.ge == null || !pos) return null;
+      const playerElev = courseElevAt(course, pos.lat, pos.lon);
+      if (playerElev == null) return null;
+      const deltaFt = (hole.ge - playerElev) * 3.28084;
+      if (Math.abs(deltaFt) < 3) return { adj: 0, ft: deltaFt };
+      const adj = Math.max(-25, Math.min(25, deltaFt / 3));
+      return { adj, ft: deltaFt };
+    }
+
+    function nearestCourse(pos) {
+      let best = null, bestD = Infinity;
+      for (const c of COURSES) {
+        const d = distYd(pos, c.center);
+        if (d < bestD) { bestD = d; best = c; }
+      }
+      // Only auto-lock when actually at the course (~3500 yd of its center)
+      return bestD < 3500 ? best : null;
+    }
+
+    function nearestHole(course, pos) {
+      let best = null, bestD = Infinity;
+      for (const h of course.holes) {
+        // You stand between the tee and the green of the hole you're playing:
+        // score by distance to tee, but the ball gets closer to the green as
+        // you play, so also consider the middle.
+        const d = Math.min(distYd(pos, h.tee), distYd(pos, h.m) * 1.35);
+        if (d < bestD) { bestD = d; best = h; }
+      }
+      return best;
+    }
+
+    function resolveState() {
+      gps.activeCourse = gps.courseIdx >= 0
+        ? COURSES[gps.courseIdx]
+        : (gps.pos ? nearestCourse(gps.pos) : null);
+      if (!gps.activeCourse) { gps.activeHole = null; return; }
+      gps.activeHole = gps.hole > 0
+        ? gps.activeCourse.holes.find(h => h.n === gps.hole) || null
+        : (gps.pos ? nearestHole(gps.activeCourse, gps.pos) : null);
+    }
+
+    function renderGpsCourseSel() {
+      const sel = $("#gpsCourseSel");
+      sel.innerHTML = `<option value="-1">Auto-detect course (GPS)</option>` +
+        COURSES.map((c, i) =>
+          `<option value="${i}">${c.name}${c.tee ? `, ${c.tee} tees` : ""}</option>`
+        ).join("");
+      sel.value = String(gps.courseIdx);
+    }
+
+    function renderHoleStrip() {
+      const strip = $("#holeStrip");
+      if (!gps.activeCourse) { strip.innerHTML = ""; return; }
+      const autoChip = `<button type="button" class="hole-chip ${gps.hole === 0 ? "on" : ""}" data-hole="0">AUTO<span class="p">gps</span></button>`;
+      strip.innerHTML = autoChip + gps.activeCourse.holes.map(h => `
+        <button type="button" class="hole-chip ${gps.hole === h.n || (gps.hole === 0 && gps.activeHole?.n === h.n) ? "on" : ""}" data-hole="${h.n}">
+          ${h.n}<span class="p">par ${h.par ?? "?"}</span>
+        </button>
+      `).join("");
+      $$(".hole-chip", strip).forEach(b => {
+        b.addEventListener("click", () => {
+          gps.hole = Number(b.dataset.hole);
+          renderGps();
+        });
+      });
+    }
+
+    /* pin storage (per course+hole, kept in the browser) */
+    const PIN_KEY = "bagbook_pins";
+    function loadPins() { try { return JSON.parse(localStorage.getItem(PIN_KEY)) || {}; } catch { return {}; } }
+    function savePins() { try { localStorage.setItem(PIN_KEY, JSON.stringify(pins)); } catch {} }
+    let pins = loadPins();
+    const pinKey = (c, h) => `${c.slug}:${h.n}`;
+    const getPin = (c, h) => (c && h) ? (pins[pinKey(c, h)] || null) : null;
+    function setPinCoord(c, h, lat, lon) { pins[pinKey(c, h)] = { lat, lon, t: Date.now() }; savePins(); }
+    function clearPin(c, h) { delete pins[pinKey(c, h)]; savePins(); }
+
+    function renderPinBar(c, h, pin) {
+      const bar = $("#pinBar"), v = $("#pinV"), actions = $("#pinActions");
+      if (!c || !h) {
+        bar.classList.remove("set");
+        v.textContent = "Not set";
+        actions.innerHTML = `<button type="button" class="pin-btn primary" id="pinSetBtn" disabled style="opacity:.5">Drop pin</button>`;
+        return;
+      }
+      if (pin) {
+        bar.classList.add("set");
+        const depth = Math.round(distYd(pin, h.f));
+        if (gps.pos) {
+          const toPin = Math.round(distYd(gps.pos, pin));
+          v.innerHTML = `${toPin}<small>to pin, ${depth} on</small>`;
+        } else {
+          v.innerHTML = `Set<small>${depth} yd onto green</small>`;
+        }
+        actions.innerHTML = `
+          <button type="button" class="pin-btn" id="pinMoveBtn">Move</button>
+          <button type="button" class="pin-btn" id="pinClearBtn">Clear</button>`;
+        $("#pinMoveBtn").addEventListener("click", openPinMap);
+        $("#pinClearBtn").addEventListener("click", () => { clearPin(c, h); renderGps(); });
+      } else {
+        bar.classList.remove("set");
+        v.textContent = "Not set";
+        actions.innerHTML = `<button type="button" class="pin-btn primary" id="pinSetBtn">Drop pin</button>`;
+        $("#pinSetBtn").addEventListener("click", openPinMap);
+      }
+    }
+
+    function renderGps() {
+      resolveState();
+      const c = gps.activeCourse, h = gps.activeHole;
+
+      $("#gpsCourseName").textContent = c ? c.name : "Live GPS";
+      $("#gpsAcc").textContent = gps.watchId == null
+        ? "GPS off"
+        : gps.pos
+          ? `GPS ±${Math.round(gps.pos.acc)} m${gps.courseIdx < 0 && !c ? ", no mapped course nearby" : ""}`
+          : "Locating…";
+
+      renderHoleStrip();
+
+      const dF = $("#dF"), dM = $("#dM"), dB = $("#dB");
+      const sub = $("#gpsSub");
+      const box = $("#gpsPickResult");
+      const head = $("#gpsPickHead");
+      const pin = getPin(c, h);
+      renderPinBar(c, h, pin);
+
+      if (!c || !h) {
+        dF.textContent = dM.textContent = dB.textContent = "-";
+        head.textContent = "Club call to middle";
+        sub.textContent = COURSES.length
+          ? "Start GPS on the course, or pick a course and hole to see the call."
+          : "No course data found. Rebuild greens.js.";
+        box.innerHTML = `<p class="empty-hint">Waiting for a distance…</p>`;
+        return;
+      }
+
+      const holeLabel = `Hole ${h.n}${h.par ? `, Par ${h.par}` : ""}${h.yds ? `, ${h.yds} ${c.tee || ""}`.trimEnd() : ""}`;
+
+      if (!gps.pos) {
+        dF.textContent = dM.textContent = dB.textContent = "-";
+        head.textContent = pin ? "Club call to pin" : "Club call to middle";
+        sub.textContent = `${holeLabel}. Start GPS to get live front / middle / back.`;
+        box.innerHTML = `<p class="empty-hint">Start GPS for a live club call.</p>`;
+        return;
+      }
+
+      const f = distYd(gps.pos, h.f);
+      const m = distYd(gps.pos, h.m);
+      const b = distYd(gps.pos, h.b);
+      dF.textContent = Math.round(f);
+      dM.textContent = Math.round(m);
+      dB.textContent = Math.round(b);
+
+      const raw = pin ? distYd(gps.pos, pin) : m;
+
+      // Plays-like: adjust for elevation change between you and the green
+      const elev = elevAdjustYd(c, h, gps.pos);
+      const target = elev ? raw + elev.adj : raw;
+
+      let elevNote = "";
+      if (elev && Math.round(Math.abs(elev.ft)) >= 3) {
+        const dir = elev.ft > 0 ? "uphill" : "downhill";
+        elevNote = `, ${Math.round(Math.abs(elev.ft))} ft ${dir}, plays ${Math.round(target)}`;
+      }
+      head.textContent = (pin ? "Club call to pin" : "Club call to middle") +
+        (elevNote ? `, plays like ${Math.round(target)}` : "");
+      sub.textContent = `${holeLabel}, green is ${Math.round(b - f)} yd deep${pin ? ", pin set" : ""}${elevNote}`;
+
+      if (target < 15 || target > 360) {
+        box.innerHTML = `<p class="empty-hint">${target < 15 ? "You're on the green. Putt." : "Walk toward the hole for a club call."}</p>`;
+        return;
+      }
+      const ranked = recommend(target);
+      box.innerHTML = clubCallHtml(target, ranked, "carry");
+    }
+
+    /* Satellite pin picker */
+    let pinMap = null, pinMapCourse = null, pinMapHole = null;
+    function openPinMap() {
+      const c = gps.activeCourse, h = gps.activeHole;
+      if (!c || !h) return;
+      const wrap = $("#mapWrap");
+      if (typeof L === "undefined") {
+        $("#mapHint").textContent = "Map needs an internet connection to load satellite imagery.";
+        wrap.classList.add("open");
+        wrap.setAttribute("aria-hidden", "false");
+        return;
+      }
+      pinMapCourse = c; pinMapHole = h;
+      $("#mapTitle").textContent = `Pin, Hole ${h.n}`;
+      $("#mapHint").textContent = "Drag the green under the marker, then Save";
+      wrap.classList.add("open");
+      wrap.setAttribute("aria-hidden", "false");
+
+      const existing = getPin(c, h);
+      const center = existing ? [existing.lat, existing.lon] : [h.m.lat, h.m.lon];
+      if (!pinMap) {
+        pinMap = L.map("pinMap", { zoomControl: true, attributionControl: true }).setView(center, 19);
+        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+          maxZoom: 21,
+          maxNativeZoom: 19,
+          attribution: "Imagery &copy; Esri",
+        }).addTo(pinMap);
+      } else {
+        pinMap.setView(center, 19);
+      }
+      setTimeout(() => pinMap.invalidateSize(), 150);
+    }
+    function closePinMap() {
+      const wrap = $("#mapWrap");
+      wrap.classList.remove("open");
+      wrap.setAttribute("aria-hidden", "true");
+    }
+    function savePinFromMap() {
+      if (!pinMap || !pinMapCourse || !pinMapHole) { closePinMap(); return; }
+      const ctr = pinMap.getCenter();
+      setPinCoord(pinMapCourse, pinMapHole, ctr.lat, ctr.lng);
+      closePinMap();
+      renderGps();
+    }
+    $("#mapClose").addEventListener("click", closePinMap);
+    $("#mapCancel").addEventListener("click", closePinMap);
+    $("#mapSave").addEventListener("click", savePinFromMap);
+
+    function startGps() {
+      if (!navigator.geolocation) {
+        $("#gpsAcc").textContent = "Geolocation not supported on this device";
+        return;
+      }
+      const btn = $("#gpsToggle");
+      btn.classList.add("live");
+      btn.innerHTML = `<span class="gps-dot"></span>Stop`;
+      $("#gpsAcc").textContent = "Locating…";
+      gps.watchId = navigator.geolocation.watchPosition(
+        p => {
+          gps.pos = {
+            lat: p.coords.latitude,
+            lon: p.coords.longitude,
+            acc: p.coords.accuracy ?? 0,
+          };
+          renderGps();
+        },
+        err => {
+          stopGps();
+          $("#gpsAcc").textContent = err.code === 1
+            ? "Location blocked. Allow it in Settings, and open this page over HTTPS"
+            : `GPS error: ${err.message}`;
+        },
+        { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 },
+      );
+    }
+
+    function stopGps() {
+      if (gps.watchId != null) navigator.geolocation.clearWatch(gps.watchId);
+      gps.watchId = null;
+      gps.pos = null;
+      const btn = $("#gpsToggle");
+      btn.classList.remove("live");
+      btn.innerHTML = `<span class="gps-dot"></span>Start`;
+      renderGps();
+    }
+
+    $("#gpsToggle").addEventListener("click", () => {
+      gps.watchId == null ? startGps() : stopGps();
+    });
+    $("#gpsCourseSel").addEventListener("change", e => {
+      gps.courseIdx = Number(e.target.value);
+      gps.hole = 0;
+      renderGps();
+    });
+
+    /* —— Init —— */
+    renderBag();
+    renderCompare();
+    renderInsights();
+    renderPick();
+    renderGpsCourseSel();
+    renderGps();
+  </script>
+</body>
+</html>
